@@ -1,0 +1,7 @@
+{
+  "meta": {
+    "title": "Super-agent instances",
+    "description": "Manage dsh-superagent instances from the sidebar: live status, start/stop/restart, panel links, and instance registration with presets. Destroy removes an instance's isolated DSH_HOME while keeping its state database and code clones.",
+    "detail": "docs/DETAIL.md"
+  }
+}

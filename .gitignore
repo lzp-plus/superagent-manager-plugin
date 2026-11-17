@@ -1,0 +1,3 @@
+# instance manifest is runtime data on this deployment; keep it local
+instances.json
+.DS_Store
