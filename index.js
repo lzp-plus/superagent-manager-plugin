@@ -50,9 +50,11 @@ async function apiState(port) {
 /** Status of one instance: wrapper verdict + orchestrator state. */
 async function statusOf(instance) {
   const result = { id: instance.id, name: instance.name, port: instance.port, profile: instance.profile,
-    repository: instance.repository ?? null, chats: instance.chats ?? [], running: false, verdict: 'unknown',
-    detail: null, load: null, health: null, setup: null }
-  if (!(await exists(instance.script))) { result.detail = `wrapper script not found: ${instance.script}`; return result }
+    repository: instance.repository ?? null, chats: instance.chats ?? [], running: false, provisioned: false,
+    verdict: 'unknown', detail: null, load: null, health: null, setup: null }
+  const scriptExists = await exists(instance.script)
+  result.provisioned = scriptExists
+  if (!scriptExists) { result.detail = `wrapper script not found: ${instance.script}`; return result }
   const status = await run(instance.script, ['status'], 30000)
   result.verdict = status.code
   if (status.code === 1) {
@@ -109,8 +111,13 @@ export const apply = (ctx) => {
         if (!/^[\w.\-/]+\/[\w.\-]+$/.test(String(body.repository ?? ''))) { reply(400, { error: 'repository must be owner/name' }); return }
         const list = await readInstances()
         if (list.some((item) => item.id === body.id)) { reply(409, { error: `instance ${body.id} already exists` }); return }
+        if (list.some((item) => String(item.repository ?? '').toLowerCase() === String(body.repository).toLowerCase())) {
+          reply(409, { error: `repository ${body.repository} is already managed` }); return
+        }
         const port = Number(body.port)
         if (!Number.isInteger(port) || port < 1024 || port > 65535) { reply(400, { error: 'port must be 1024-65535' }); return }
+        const portOwner = list.find((item) => Number(item.port) === port)
+        if (portOwner) { reply(409, { error: `port ${port} is already used by ${portOwner.id}` }); return }
         const home = String(body.home ?? `${process.env.HOME}/.dsh-superagent-${body.id}`)
         const profile = `superagent-${body.id}`
         const created = { id: body.id, name: String(body.name ?? body.id), profile, port, home,

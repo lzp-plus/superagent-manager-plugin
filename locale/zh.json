@@ -1,7 +1,7 @@
 {
   "meta": {
     "title": "Super-agent 实例管理",
-    "description": "在侧栏管理各 dsh-superagent 实例：实时状态、启动/停止/重启、面板直达链接，以及带预设的实例登记。销毁会移除实例的独立 DSH_HOME，但保留状态库与代码克隆。",
+    "description": "在侧栏管理各 dsh-superagent 实例：实时状态、启动/停止/重启、面板直达链接，以及粘贴仓库即可登记实例。销毁会移除实例的独立 DSH_HOME，但保留状态库与代码克隆。",
     "detail": "docs/DETAIL.md"
   }
 }

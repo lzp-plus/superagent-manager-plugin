@@ -7,12 +7,12 @@
 - **状态总览**：每 10 秒轮询一次各实例的运行状态、工单负载（运行/排队/并发上限）、健康项、待配置问题与监听群
 - **生命周期**：启动 / 停止 / 重启（调用各实例的包装命令 `sa-<id>`）
 - **打开面板**：直达该实例的 Superagent 面板（自动携带最新 token，新标签页打开）
-- **新建实例**：在面板里登记 `id / 显示名 / 仓库 / 端口`，插件创建独立的 `DSH_HOME` 并写入清单；置备步骤见下
+- **新建实例**：粘贴 GitHub 仓库（`owner/name` 或整条链接），插件自动推导实例 id、显示名与端口，创建独立 `DSH_HOME` 并写入清单；置备步骤见下
 - **销毁实例**：确认后停止服务、删除该实例的 DSH_HOME；**状态库（~/.dsh/state/…）与代码克隆保留**，可手工彻底清理
 
 ## 新实例置备步骤（创建后执行一次）
 
-面板“新建”只完成登记与 HOME 创建；让实例真正跑起来还需（以 id 为 `demo` 为例）：
+面板“新建”只需粘贴仓库链接；实例 id 由仓库名自动推导（小写、连字符，重名自动加 `-2`），实际 id 会显示在登记成功的提示里。让实例真正跑起来还需（以 id 为 `demo` 为例）：
 
 1. 克隆仓库：`git clone https://github.com/<owner>/<repo>.git ~/src/<repo>`
 2. 建 profile：`DSH_HOME=~/.dsh-superagent-demo dsh superagent-demo --from-default-profile web --dump-config > /dev/null`
