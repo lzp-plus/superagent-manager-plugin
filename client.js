@@ -828,6 +828,31 @@ html[data-platform='darwin'] .sam-head-bar {
 
     /* --- status model ---------------------------------------------------- */
 
+    /* The owning plugin Context, captured in apply() so panel actions can
+     * reach optional shell services (the sidebar browser tab) safely. */
+    let hostCtx = null;
+
+    /** Open a URL in the app's built-in sidebar browser tab when that service
+     * and its 'browser' page type are present (the same route chat external
+     * links take). Returns true when handled; callers fall back to a plain
+     * window.open, which the desktop shell routes to the system browser. */
+    function openInSidebarTab(url) {
+      try {
+        const sidebarRight = hostCtx && typeof hostCtx.get === 'function'
+          ? hostCtx.get('sidebarRight')
+          : undefined;
+        const tabs = hostCtx && typeof hostCtx.get === 'function'
+          ? hostCtx.get('sidebarRightTabs')
+          : undefined;
+        if (sidebarRight && typeof sidebarRight.openTab === 'function'
+          && tabs && typeof tabs.get === 'function' && tabs.get('browser')) {
+          sidebarRight.openTab('browser', { params: { url } });
+          return true;
+        }
+      } catch { /* service absent in this shell — caller falls back */ }
+      return false;
+    }
+
     const HEALTH_ERROR = /^(error|failed|failure)$/i;
     const HEALTH_WARN = /^(paused|starting|pending|queued|loading|stopped|degraded)$/i;
     const HEALTH_OK = /^(ok|done|active|healthy|ready|running)$/i;
@@ -1307,27 +1332,21 @@ html[data-platform='darwin'] .sam-head-bar {
       };
 
       const openPanel = async () => {
-        /* Open the tab inside the click's transient activation; navigating it
-         * after the token fetch keeps the browser from treating it as a popup. */
-        const opened = window.open('', '_blank');
-        if (!opened) {
-          setNote(t('popupBlocked'));
-          notify('error', t('popupBlocked'));
-          return;
-        }
         setBusy('panel');
         setNote(null);
         try {
           const result = await api(`panel/${instance.id}`);
-          try {
-            opened.location.href = result.url;
-          } catch {
-            try { opened.close(); } catch { /* already gone */ }
-            throw new Error(t('popupBlocked'));
-          }
-          try { opened.opener = null; } catch { /* cross-origin windows may refuse */ }
+          const url = String(result && result.url || '');
+          if (!/^https?:\/\//i.test(url)) throw new Error('panel URL missing');
+          /* Preferred: the app's built-in sidebar browser tab — the same route
+           * chat external links take (ctx.sidebarRight.openTab('browser')).
+           * Fallback: window.open with the real URL; the desktop shell hands
+           * http(s) links to the system browser via shell.openExternal. Both
+           * happen without any popup permission, so the old "allow pop-ups"
+           * dead end is gone. */
+          const sidebarRight = openInSidebarTab(url);
+          if (!sidebarRight) window.open(url, '_blank', 'noopener,noreferrer');
         } catch (error) {
-          try { opened.close(); } catch { /* already gone */ }
           const message = cleanMessage(error);
           setNote(message);
           notify('error', tr(t, 'actionFailed', { error: message }));
@@ -1615,7 +1634,7 @@ html[data-platform='darwin'] .sam-head-bar {
         doneRestart: '{name} 已重启',
         doneDestroy: '{name} 已销毁',
         registered: '已登记 {name}（{id}）。按插件说明完成置备。',
-        popupBlocked: '请允许本站弹出窗口后再打开面板。',
+        popupBlocked: '面板未能打开：{url}',
         fieldRepository: 'GitHub 仓库',
         fieldRepositoryPlaceholder: 'owner/name 或 GitHub 链接',
         invalidRepository: '输入 owner/name 或 GitHub 链接。',
@@ -1674,7 +1693,7 @@ html[data-platform='darwin'] .sam-head-bar {
         doneRestart: '{name} restarted',
         doneDestroy: '{name} destroyed',
         registered: 'Registered {name} ({id}). Complete setup from the plugin details.',
-        popupBlocked: 'Allow pop-ups for this site to open the panel.',
+        popupBlocked: 'Panel did not open: {url}',
         fieldRepository: 'GitHub repository',
         fieldRepositoryPlaceholder: 'owner/name or GitHub URL',
         invalidRepository: 'Enter owner/name or a GitHub URL.',
@@ -1685,6 +1704,7 @@ html[data-platform='darwin'] .sam-head-bar {
     return {
       inject: ['slots', 'locale'],
       apply(ctx) {
+        hostCtx = ctx;
         ctx.effect(() => ctx.locale.register(NS, dictionaries), 'superagent-manager: locale');
         // bind() returns the stable translate function for the namespace; the
         // framework also injects `t` into registered components via `locale: NS`.
